@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Navecitas Felices</title>
+
+    <style>
+      body {
+        background: black;
+        margin: 0;
+        padding: 0;
+      }
+
+      #frame {
+        border: 5px solid gray;
+        margin: 10px auto;
+        width: 320px;
+      }
+
+      #container {
+        height: 640px;
+        width: 320px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      #container .navecita {
+        position: absolute;
+        width: 0;
+        border-left: 15px solid black;
+        border-right: 15px solid black;
+        border-bottom: 30px solid gray;
+        bottom: 10px;
+      }
+
+      #container .bullet {
+        position: absolute;
+        background: white;
+        height: 20px;
+        width: 1px;
+        border-left: 1px solid red;
+        border-right: 1px solid red;
+      }
+    </style>
+
+    <script type="text/javascript">
+      Navecitas = function(container) {
+        this.container = container;
+        this.bullets = [];
+        this.initialize();
+      };
+
+      Navecitas.CYCLES_PER_SECOND = 90;
+      Navecitas.FRAMES_PER_SECOND = 50;
+
+      // Do not change:
+      Navecitas.REFRESH_PERIOD = 1000 / Navecitas.FRAMES_PER_SECOND;
+
+      Navecitas.KEY_LEFT = 37;
+      Navecitas.KEY_RIGHT = 39;
+      Navecitas.KEY_FIRE = 88; // X
+
+      Navecitas.NAVECITA_WIDTH = 30;
+      Navecitas.NAVECITA_HEIGHT = 30;
+
+      Navecitas.H_SPEED = 0.25;
+
+      Navecitas.FIRE_SPEED = -0.8;
+      Navecitas.FIRE_FREQUENCY = 5;
+      Navecitas.FIRE_PERIOD = 1000 / Navecitas.FIRE_FREQUENCY;
+
+      Navecitas.prototype.initialize = function() {
+        this.createNavecita();
+
+        this.x = 0;
+
+        this.centerNavecita();
+
+        this.movingLeft = false;
+        this.movingRight = false;
+        this.firing = false;
+
+        this.bullets.forEach(function(bullet) {
+          bullet.remove();
+        });
+      };
+
+      Navecitas.prototype.start = function() {
+        if (!this.interval) {
+          this.lastCycle = Number(new Date);
+          this.lastFrame = 0;
+          this.lastBullet = 0;
+
+          this.registerListeners();
+
+          var me = this;
+          this.interval = setInterval(function() {
+            me.cycle();
+          }, 1000 / Navecitas.CYCLES_PER_SECOND);
+        }
+      };
+
+      Navecitas.prototype.stop = function() {
+        if (this.interval) {
+          clearInterval(this.interval);
+          this.interval = undefined;
+        }
+      };
+
+      Navecitas.prototype.cycle = function() {
+        var time = Number(new Date);
+        var elapsed = time - this.lastCycle;
+
+        if (this.movingLeft) {
+          this.x -= Navecitas.H_SPEED * elapsed;
+          if (this.x < 0) this.x = 0;
+        }
+
+        if (this.movingRight) {
+          this.x += Navecitas.H_SPEED * elapsed;
+          if (this.x > this.container.offsetWidth - Navecitas.NAVECITA_WIDTH) this.x = this.container.offsetWidth - Navecitas.NAVECITA_WIDTH;
+        }
+
+        if (this.firing && time - this.lastBullet > Navecitas.FIRE_PERIOD) {
+          new Navecitas.Bullet(this, this.x + Navecitas.NAVECITA_WIDTH / 2 - Navecitas.Bullet.WIDTH / 2, this.navecita.offsetTop - Navecitas.NAVECITA_HEIGHT, Navecitas.FIRE_SPEED);
+          this.lastBullet = time;
+        }
+
+        this.bullets.forEach(function(bullet) {
+          bullet.update(elapsed);
+        });
+
+        if (time - this.lastFrame >= Navecitas.REFRESH_PERIOD) {
+          this.draw();
+          this.lastFrame = time;
+        }
+
+        this.lastCycle = time;
+      };
+
+      Navecitas.prototype.draw = function() {
+        this.navecita.style.left = String(Math.round(this.x)) + 'px';
+
+        this.bullets.forEach(function(bullet) {
+          bullet.draw();
+        });
+      };
+
+      Navecitas.prototype.registerListeners = function() {
+        var me = this;
+
+        document.onkeydown = function(event) {
+          if (event.keyCode == Navecitas.KEY_LEFT) {
+            me.movingLeft = true;
+            return false;
+          }
+          
+          if (event.keyCode == Navecitas.KEY_RIGHT) {
+            me.movingRight = true;
+            return false;
+          }
+
+          if (event.keyCode == Navecitas.KEY_FIRE) {
+            me.firing = true;
+          }
+        };
+
+        document.onkeyup = function(event) {
+          if (event.keyCode == Navecitas.KEY_LEFT) {
+            me.movingLeft = false;
+            return false;
+          }
+          
+          if (event.keyCode == Navecitas.KEY_RIGHT) {
+            me.movingRight = false;
+            return false;
+          }
+
+          if (event.keyCode == Navecitas.KEY_FIRE) {
+            me.firing = false;
+          }
+        };
+      };
+
+      Navecitas.prototype.createNavecita = function() {
+        if (!this.navecita) {
+          this.navecita = document.createElement('div');
+          this.navecita.className = 'navecita';
+          this.container.appendChild(this.navecita);
+        }
+      };
+
+      Navecitas.prototype.centerNavecita = function() {
+        this.x = this.container.offsetWidth / 2 - Navecitas.NAVECITA_WIDTH / 2;
+      };
+
+      Navecitas.Bullet = function(game, x, y, speed) {
+        this.game = game;
+
+        this.game.bullets.push(this);
+
+        this.x = x;
+        this.y = y;
+        this.speed = speed;
+
+        this.bullet = document.createElement('div');
+        this.bullet.className = 'bullet';
+        this.bullet.style.left = String(Math.round(this.x)) + 'px';
+        this.draw();
+        this.game.container.appendChild(this.bullet);
+      };
+
+      Navecitas.Bullet.WIDTH = 3;
+      Navecitas.Bullet.HEIGHT = 20;
+
+      Navecitas.Bullet.prototype.update = function(time) {
+        this.y += this.speed * time;
+
+        if (
+          this.y <= -Navecitas.Bullet.HEIGHT
+          ||
+          this.y >= this.game.container.offsetHeight
+        ) {
+          this.remove();
+        }
+      };
+
+      Navecitas.Bullet.prototype.draw = function() {
+        this.bullet.style.top = String(Math.round(this.y)) + 'px';
+      };
+
+      Navecitas.Bullet.prototype.remove = function() {
+        this.game.container.removeChild(this.bullet);
+        this.game.bullets.splice(this.game.bullets.indexOf(this), 1);
+        this.game = null;
+      };
+    </script>
+  </head>
+
+  <body>
+    <div id="frame">
+      <div id="container">
+      </div>
+    </div>
+
+    <script type="text/javascript">
+      var game = new Navecitas(document.getElementById('container')).start();
+    </script>
+  </body>
+</html>
